@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced RFID Inventory Dashboard</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --secondary-color: #f5f5f5;
+            --text-color: #333;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            background-color: var(--secondary-color);
+            transition: background-color 0.3s ease;
+        }
+        body.dark-mode {
+            --secondary-color: #333;
+            --text-color: #f5f5f5;
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1, h2 {
+            color: var(--primary-color);
+            text-align: center;
+        }
+        .card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .dark-mode .card {
+            background-color: #444;
+        }
+        .card-title {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        .status-connected {
+            background-color: var(--success-color);
+            color: white;
+        }
+        .status-disconnected {
+            background-color: var(--danger-color);
+            color: white;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        #chart {
+            width: 100%;
+            height: 300px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        .dark-mode th, .dark-mode td {
+            border-bottom: 1px solid #555;
+        }
+        th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .dark-mode tr:nth-child(even) {
+            background-color: #555;
+        }
+        input[type="text"], input[type="password"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            display: inline-block;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            opacity: 0.8;
+        }
+        .alert {
+            padding: 10px;
+            background-color: var(--warning-color);
+            color: black;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        #darkModeToggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        #searchInput {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #loginForm, #addItemForm {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <button id="darkModeToggle">Toggle Dark Mode</button>
+    <div class="container">
+        <div id="loginForm">
+            <h2>Login</h2>
+            <input type="text" id="username" placeholder="Username" required>
+            <input type="password" id="password" placeholder="Password" required>
+            <button onclick="login()">Login</button>
+        </div>
+        <div id="dashboard" style="display:none;">
+            <h1>Enhanced RFID Inventory Dashboard</h1>
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title">Connection Status</div>
+                    <div id="connectionStatus"></div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Last Scan</div>
+                    <div id="lastScan">No recent scans</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Last 5 Scans</div>
+                <ul id="recentScans"></ul>
+            </div>
+            <div class="card">
+                <div class="card-title">Inventory Overview</div>
+                <canvas id="chart"></canvas>
+            </div>
+            <div class="card">
+                <div class="card-title">Inventory List</div>
+                <input type="text" id="searchInput" placeholder="Search inventory...">
+                <table id="inventoryTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Quantity</th>
+                            <th>Last Scanned</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="card">
+                <div class="card-title">Add New Item</div>
+                <div id="addItemForm">
+                    <input type="text" id="newItemId" placeholder="Item ID" required>
+                    <input type="text" id="newItemName" placeholder="Item Name" required>
+                    <input type="number" id="newItemQuantity" placeholder="Quantity" required>
+                    <button onclick="addNewItem()">Add Item</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script>
+        let ws;
+        let chart;
+        let inventory = [];
+        let recentScans = [];
+
+        function connect() {
+            ws = new WebSocket('ws://' + window.location.hostname + '/ws');
+            ws.onopen = onOpen;
+            ws.onclose = onClose;
+            ws.onmessage = onMessage;
+        }
+
+        function onOpen() {
+            console.log('Connected to WebSocket');
+            updateConnectionStatus(true);
+        }
+
+        function onClose() {
+            console.log('Disconnected from WebSocket');
+            updateConnectionStatus(false);
+            setTimeout(connect, 3000);
+        }
+
+        function onMessage(event) {
+            const data = JSON.parse(event.data);
+            if (data.type === 'inventory') {
+                updateInventory(data.items);
+            } else if (data.type === 'scan') {
+                updateLastScan(data.time);
+                updateRecentScans(data.time);
+            }
+        }
+
+        function updateConnectionStatus(isConnected) {
+            const statusElement = document.getElementById('connectionStatus');
+            statusElement.textContent = isConnected ? 'Connected' : 'Disconnected';
+            statusElement.className = 'status-badge ' + (isConnected ? 'status-connected' : 'status-disconnected');
+        }
+
+        function updateLastScan(time) {
+            document.getElementById('lastScan').textContent = new Date(parseInt(time)).toLocaleString();
+        }
+
+        function updateRecentScans(time) {
+            recentScans.unshift(new Date(parseInt(time)).toLocaleString());
+            if (recentScans.length > 5) {
+                recentScans.pop();
+            }
+            const recentScansList = document.getElementById('recentScans');
+            recentScansList.innerHTML = '';
+            recentScans.forEach(scan => {
+                const li = document.createElement('li');
+                li.textContent = scan;
+                recentScansList.appendChild(li);
+            });
+        }
+
+        function updateInventory(items) {
+            inventory = items;
+            updateTable(items);
+            updateChart(items);
+            checkLowStock(items);
+        }
+
+        function updateTable(items) {
+            const tbody = document.querySelector('#inventoryTable tbody');
+            tbody.innerHTML = '';
+            items.forEach(item => {
+                const row = tbody.insertRow();
+                row.insertCell(0).textContent = item.id;
+                row.insertCell(1).textContent = item.name;
+                row.insertCell(2).textContent = item.quantity;
+                row.insertCell(3).textContent = new Date(parseInt(item.lastScanned)).toLocaleString();
+            });
+        }
+
+        function updateChart(items) {
+            const ctx = document.getElementById('chart').getContext('2d');
+            
+            if (chart) {
+                chart.destroy();
+            }
+
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: items.map(item => item.name),
+                    datasets: [{
+                        label: 'Quantity',
+                        data: items.map(item => item.quantity),
+                        backgroundColor: 'rgba(74, 144, 226, 0.7)',
+                        borderColor: 'rgba(74, 144, 226, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function checkLowStock(items) {
+            const lowStockItems = items.filter(item => item.quantity < 5);
+            if (lowStockItems.length > 0) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert';
+                alertDiv.textContent = `Low stock alert for: ${lowStockItems.map(item => item.name).join(', ')}`;
+                document.body.insertBefore(alertDiv, document.body.firstChild);
+                setTimeout(() => alertDiv.remove(), 5000);
+            }
+        }
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            // In a real application, you would send these credentials to the server for verification
+            if (username === 'admin' && password === 'password') {
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                connect();
+            } else {
+                alert('Invalid credentials');
+            }
+        }
+
+        function addNewItem() {
+            const id = document.getElementById('newItemId').value;
+            const name = document.getElementById('newItemName').value;
+            const quantity = document.getElementById('newItemQuantity').value;
+            
+            if (id && name && quantity) {
+                const newItem = {
+                    id: id,
+                    name: name,
+                    quantity: parseInt(quantity),
+                    lastScanned: Date.now().toString()
+                };
+                ws.send(JSON.stringify({type: 'addItem', item: newItem}));
+                document.getElementById('newItemId').value = '';
+                document.getElementById('newItemName').value = '';
+                document.getElementById('newItemQuantity').value = '';
+            } else {
+                alert('Please fill all fields');
+            }
+        }
+
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredItems = inventory.filter(item => 
+                item.name.toLowerCase().includes(searchTerm) || 
+                item.id.toLowerCase().includes(searchTerm)
+            );
+            updateTable(filteredItems);
+            updateChart(filteredItems);
+        });
+
+        document.getElementById('darkModeToggle').addEventListener('click', function() {
+            document.body.classList.toggle('dark-mode');
+        });
+
+        window.addEventListener('load', () => {
+            document.getElementById('loginForm').style.display = 'block';
+        });
+    </script>
+</body>
+</html>
